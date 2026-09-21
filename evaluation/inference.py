@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from features.standardization import transform
 from losses.mdn_nll import patch_nll
-from scope_data.decoding import decode_image, resize_if_needed
-from scope_data.patches import extract_patches
+from data.decoding import decode_image, resize_if_needed
+from data.patches import extract_patches
 from features.cr_features import extract_cr
 
 

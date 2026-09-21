@@ -95,7 +95,7 @@ SCOPE/
 │   ├── METHOD_SPEC.md
 │   └── IMPLEMENTATION_SPEC.md
 │
-├── scope_data/
+├── data/
 │   ├── __init__.py
 │   ├── decoding.py
 │   ├── sources.py
@@ -157,7 +157,7 @@ SCOPE/
 
 说明：
 
-- `scope_data/` 专门负责输入、数据源、manifest、patch 坐标和 feature cache；不要命名为顶层 `data/`，避免与用户正式数据目录混淆；
+- `data/` 专门负责输入、数据源、manifest、patch 坐标和 feature cache；正式图片仍放在仓库外的 `SCOPE_DATA/`；
 - `features/` 只包含固定公式特征，不允许可训练参数；
 - `models/` 只包含当前 MDN；
 - `losses/` 只包含完整混合高斯 NLL；
@@ -400,7 +400,7 @@ sources:
 
 ## 6. 输入图像统一解码
 
-实现 `scope_data/decoding.py`。
+实现 `data/decoding.py`。
 
 ### 6.1 支持范围
 
@@ -501,7 +501,7 @@ content_id = SHA256(H || W || RGB_bytes)
 
 ## 8. 数据源与 manifest
 
-实现 `scope_data/sources.py`、`scope_data/lsun_lmdb.py`、`scope_data/manifests.py` 和 `scripts/build_manifests.py`。
+实现 `data/sources.py`、`data/lsun_lmdb.py`、`data/manifests.py` 和 `scripts/build_manifests.py`。
 
 ### 8.1 manifest 通用字段
 
@@ -721,7 +721,7 @@ scale_y
 
 ## 11. 固定四图块坐标
 
-实现 `scope_data/patches.py`。
+实现 `data/patches.py`。
 
 对单轴长度 `L >= 64`：
 
@@ -999,7 +999,7 @@ R_raw: float64 [8]
 
 ## 15. 特征缓存
 
-实现 `scope_data/feature_cache.py` 和 `scripts/extract_features.py`。
+实现 `data/feature_cache.py` 和 `scripts/extract_features.py`。
 
 ### 15.1 为什么必须缓存
 
@@ -2025,7 +2025,7 @@ S > tau  → AI
 正式提交前必须全部通过：
 
 ```bash
-python -m compileall scope_data features models losses engine evaluation scripts tests
+python -m compileall data features models losses engine evaluation scripts tests
 python -m pytest -q
 ```
 
@@ -2368,7 +2368,7 @@ manifest
 ```bash
 git status
 git diff --check
-python -m compileall scope_data features models losses engine evaluation scripts tests
+python -m compileall data features models losses engine evaluation scripts tests
 python -m pytest -q
 ```
 

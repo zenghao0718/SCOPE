@@ -1,7 +1,7 @@
 from io import BytesIO
 import numpy as np
 from PIL import Image, PngImagePlugin
-from scope_data.decoding import decode_image, canonical_content_id, resize_if_needed
+from data.decoding import decode_image, canonical_content_id, resize_if_needed
 
 
 def encoded(image, fmt="PNG", **kw):

@@ -1,8 +1,8 @@
 import argparse
 from pathlib import Path
 from _common import load_config
-from scope_data.manifests import read_manifest
-from scope_data.feature_cache import build_cache
+from data.manifests import read_manifest
+from data.feature_cache import build_cache
 
 
 def main():

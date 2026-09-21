@@ -2,9 +2,9 @@ import argparse
 from collections import Counter
 from pathlib import Path
 from _common import load_config, paths_config
-from scope_data.sources import file_records, genimage_records
-from scope_data.lsun_lmdb import lmdb_records
-from scope_data.manifests import enrich, build_splits, write_manifests
+from data.sources import file_records, genimage_records
+from data.lsun_lmdb import lmdb_records
+from data.manifests import enrich, build_splits, write_manifests
 
 
 def main():

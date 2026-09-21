@@ -1,5 +1,5 @@
 import numpy as np
-from scope_data.patches import patch_coordinates, extract_patches
+from data.patches import patch_coordinates, extract_patches
 
 
 def test_coordinates_and_duplicates():

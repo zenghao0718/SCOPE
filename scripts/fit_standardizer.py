@@ -3,7 +3,7 @@ import csv
 from collections import Counter
 from pathlib import Path
 from _common import load_config, write_json
-from scope_data.feature_cache import load_cache, feature_protocol_hash, cache_sha256
+from data.feature_cache import load_cache, feature_protocol_hash, cache_sha256
 from features.standardization import fit
 
 

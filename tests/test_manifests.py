@@ -1,5 +1,5 @@
 import pytest
-from scope_data.manifests import build_splits
+from data.manifests import build_splits
 
 
 def row(source, ident):

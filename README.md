@@ -4,7 +4,7 @@ SCOPE is a real-only conditional residual statistics anomaly detector. Four fixe
 
 ## Layout
 
-- `scope_data/`: unified decoding, content IDs, manifests, patches, and feature caches
+- `data/`: unified decoding, content IDs, manifests, patches, and feature caches
 - `features/`: fixed C/R formulas and train-only standardization
 - `models/`, `losses/`, `engine/`: MDN, full mixture NLL, deterministic training
 - `evaluation/`, `scripts/`: calibration, evaluation, summary, and command line entry points
@@ -35,3 +35,13 @@ python scripts/eval_genimage.py --feature-dir ../SCOPE_DATA/features/SCOPE_CR68_
 ```
 
 Repeat train through evaluation for seeds `42` and `2026`, then run `python scripts/summarize_seeds.py --run-dir ../SCOPE_RUNS/SCOPE_CR68_MDN3_v1.0`. `python -m pytest -q` runs synthetic tests without formal data.
+
+## Monitoring and results
+
+Each seed writes its own timestamped training, calibration, COCO, and GenImage logs under `seed_<seed>/logs/`. Every log streams to the terminal and a UTF-8 `.log` file. Training also keeps `logs/metrics.csv` and grouped TensorBoard events in `seed_<seed>/tensorboard/`. View them with:
+
+```bash
+tensorboard --logdir ../SCOPE_RUNS/SCOPE_CR68_MDN3_v1.0 --bind_all --port 6006
+```
+
+Calibration scores and threshold metadata are in `seed_<seed>/calibration/`. COCO and GenImage score rows and metrics are in `seed_<seed>/evaluation/real_external_coco/` and `seed_<seed>/evaluation/genimage_eval/` respectively. These reports are for audit and final evaluation; they do not feed back into training.

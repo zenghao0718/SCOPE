@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 import yaml
 from _common import load_config, read_json, write_json
-from scope_data.feature_cache import load_cache, feature_protocol_hash, cache_sha256
+from data.feature_cache import load_cache, feature_protocol_hash, cache_sha256
 from engine.trainer import train
 
 
