@@ -1,0 +1,56 @@
+protocol:
+  id: SCOPE_CR68_MDN3_v1.0
+image:
+  patch_size: 64
+  patches_per_image: 4
+  min_short_side: 64
+  resize_mode: bilinear
+  supported_extensions: [".jpg", ".jpeg", ".png"]
+  alpha_background: white
+feature:
+  lowpass_1d: [1, 4, 6, 4, 1]
+  lowpass_divisor: 16.0
+  delta: 0.0001
+  correlation_clip: 0.999
+  near_constant_std: 0.000001
+  c_dim: 6
+  r_dim: 8
+  c_names: [lp_mean_r, lp_mean_g, lp_mean_b, lp_luma_std, lp_grad_rms, clipped_pixel_fraction]
+  r_names: [log_res_std_r, log_res_std_g, log_res_std_b, fisher_spatial_h, fisher_spatial_v, fisher_channel_rg, fisher_channel_rb, fisher_channel_gb]
+model:
+  hidden_dims: [64, 64]
+  num_components: 3
+  sigma_floor: 0.05
+train:
+  batch_size_images: 256
+  max_epochs: 50
+  learning_rate: 0.001
+  betas: [0.9, 0.999]
+  adam_eps: 0.00000001
+  weight_decay_weight: 0.0001
+  weight_decay_bias: 0.0
+  grad_clip_norm: 5.0
+  amp: false
+  tf32: false
+scheduler:
+  mode: min
+  factor: 0.5
+  patience: 2
+  threshold: 0.0001
+  threshold_mode: abs
+  cooldown: 0
+  min_lr: 0.00001
+  eps: 0.00000001
+early_stopping:
+  min_delta: 0.0001
+  patience: 5
+seeds: [17, 42, 2026]
+data:
+  split_salt: "20260917"
+  real_train: {imagenet: 5000, lsun: 5000}
+  real_val: {imagenet: 1000, lsun: 1000}
+  real_calibration: {imagenet: 1000, lsun: 1000}
+  real_external_eval: {coco: 2000}
+calibration:
+  quantile: 0.95
+  method: higher

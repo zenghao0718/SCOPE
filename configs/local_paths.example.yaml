@@ -1,0 +1,14 @@
+workspace:
+  data_root: "../SCOPE_DATA"
+  runs_root: "../SCOPE_RUNS"
+sources:
+  imagenet_root: "/path/to/imagenet"
+  lsun_roots:
+    - "/path/to/lsun/source_or_lmdb"
+  coco_root: "/path/to/coco"
+  genimage_root: "/path/to/genimage"
+  genimage_eval:
+    # Explicit generator, label, and evaluation directory mapping required.
+    # - {generator: example, label: 0, path: /path/to/real/test}
+    # - {generator: example, label: 1, path: /path/to/fake/test}
+    []

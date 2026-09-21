@@ -1,0 +1,3 @@
+# Preserve the supplied Markdown bytes, including intentional hard line breaks.
+docs/METHOD_SPEC.md -whitespace
+docs/IMPLEMENTATION_SPEC.md -whitespace
