@@ -996,8 +996,12 @@ SCOPE 必须以 **图片级别** 划分数据，不能把同一图的不同图�
 1. GenImage 测试清单先冻结；
 2. COCO external real 清单先冻结；
 3. real_train / val / calibration 不得与固定评估清单内容重复；
-4. ImageNet 与 LSUN 候选池内部和跨来源去重；
+4. ImageNet、LSUN 与 COCO 原始数据先作为候选池。对稳定排序后的候选 identity 使用固定 `candidate_sampling_seed=20260917` 产生确定性随机顺序，沿该顺序增量解码、计算 canonical content ID、去重并排除与已冻结正式集合重叠的内容，直到各来源达到固定数量；候选不足时沿同一顺序继续补样；
 5. 三个随机种子使用完全相同的数据划分。
+
+正式内容隔离适用于最终入选的 ImageNet、LSUN、COCO 与完整 GenImage benchmark。未入选的 ImageNet 候选不需要全部解码，也不用于排除 LSUN。COCO、ImageNet、LSUN 依次冻结；各来源按随机顺序中的入选顺序划分。GenImage benchmark 仍全量解码与冻结。
+
+标准化统计量只使用最终 `real_train` 的 10000 张真实图对应的 40000 个 patch，不使用完整候选数据集。
 
 目的就是避免数据泄漏。
 

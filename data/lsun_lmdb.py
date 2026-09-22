@@ -8,7 +8,8 @@ def lmdb_records(path):
     env = lmdb.open(str(path), readonly=True, lock=False, readahead=False, subdir=path.is_dir())
     try:
         with env.begin() as tx:
-            keys = [key for key, _ in tx.cursor() if key != b"__keys__" and key != b"__len__"]
+            keys = [key for key in tx.cursor().iternext(keys=True, values=False)
+                    if key not in (b"__keys__", b"__len__")]
     finally:
         env.close()
     return [dict(image_id=f"lsun:{path.name}:{key.hex()}", source="lsun", source_category=path.name,

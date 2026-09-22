@@ -46,7 +46,7 @@ early_stopping:
   patience: 5
 seeds: [17, 42, 2026]
 data:
-  split_salt: "20260917"
+  candidate_sampling_seed: 20260917
   real_train: {imagenet: 5000, lsun: 5000}
   real_val: {imagenet: 1000, lsun: 1000}
   real_calibration: {imagenet: 1000, lsun: 1000}

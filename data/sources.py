@@ -12,9 +12,10 @@ def image_files(root):
 
 
 def file_records(root, source, *, label=0, generator="", group_id=""):
+    root = Path(root).resolve()
     prefix = f"genimage:{generator}:{label}" if source == "genimage" else source
     return [dict(image_id=f"{prefix}:{p.relative_to(root).as_posix()}", source=source,
-                 source_category=p.parent.name, storage_type="file", path=str(p.resolve()),
+                 source_category=p.parent.name, storage_type="file", path=str(p),
                  container_path="", sample_key="", label=label, generator=generator,
                  group_id=group_id) for p in image_files(root)]
 

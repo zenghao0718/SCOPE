@@ -17,7 +17,7 @@ def load_config(path, *, formal=True):
         ("train", "batch_size_images"): 256, ("train", "max_epochs"): 50,
         ("train", "amp"): False, ("train", "tf32"): False,
         ("calibration", "method"): "higher", ("seeds",): [17, 42, 2026],
-        ("calibration", "quantile"): 0.95, ("data", "split_salt"): "20260917",
+        ("calibration", "quantile"): 0.95, ("data", "candidate_sampling_seed"): 20260917,
         ("data", "real_train", "imagenet"): 5000, ("data", "real_train", "lsun"): 5000,
         ("data", "real_val", "imagenet"): 1000, ("data", "real_val", "lsun"): 1000,
         ("data", "real_calibration", "imagenet"): 1000, ("data", "real_calibration", "lsun"): 1000,
@@ -25,8 +25,11 @@ def load_config(path, *, formal=True):
     }
     for keys, expected in checks.items():
         current = config
-        for key in keys:
-            current = current[key]
+        try:
+            for key in keys:
+                current = current[key]
+        except (KeyError, TypeError) as exc:
+            raise ValueError(f"formal configuration changed at {'.'.join(keys)}: missing") from exc
         if current != expected and formal:
             raise ValueError(f"formal configuration changed at {'.'.join(keys)}: {current!r}")
     if config["model"]["num_components"] < 1 or config["model"]["sigma_floor"] <= 0:

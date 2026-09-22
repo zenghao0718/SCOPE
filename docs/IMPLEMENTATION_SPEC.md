@@ -312,7 +312,7 @@ early_stopping:
 seeds: [17, 42, 2026]
 
 data:
-  split_salt: "20260917"
+  candidate_sampling_seed: 20260917
   real_train:
     imagenet: 5000
     lsun: 5000
@@ -390,6 +390,7 @@ sources:
 - batch size = 256；
 - max epochs = 50；
 - seeds 精确为 `[17,42,2026]`；
+- candidate_sampling_seed = 20260917；
 - calibration method = `higher`；
 - AMP = false；
 - TF32 = false。
@@ -561,64 +562,27 @@ METHOD_SPEC 没有规定用户本地 GenImage 的唯一目录结构，因此工�
 
 ### 9.1 第一步：冻结 GenImage evaluation manifest
 
-先构建完整 GenImage 评估条目并计算 canonical `content_id`。
+先完整枚举并解码 GenImage 正式测试条目，对全部可解码图像计算 canonical `content_id`。
 
 评估清单本身保持 benchmark 原有条目；即使评估集中出现重复，也不要为了“清洁”而自动重写 benchmark。
 
-### 9.2 第二步：冻结 COCO external real
+### 9.2 候选身份与固定随机顺序
 
-COCO 候选先在来源内部按 canonical content ID 去重。
+对 COCO、ImageNet、LSUN 分别只枚举文件路径或 LMDB key，不预先解码。按稳定 candidate identity 排序后，以独立的 `candidate_sampling_seed=20260917` 生成固定随机排列。该 seed 与模型训练 seeds `[17,42,2026]` 无关。每个来源仅对排列中实际消费到的候选解码并计算 canonical content ID；合法唯一数量不足时，沿同一排列继续补样，不重新抽样。
 
-固定 salt：
+### 9.3 第二步：冻结 COCO external real
 
-```text
-20260917
-```
+沿 COCO 固定随机排列增量解码，排除解码失败、COCO 内部内容重复以及完整 GenImage benchmark 的内容 ID。凑够 2000 张后冻结为 `real_external_eval`，不解码剩余候选。
 
-排序 key：
+### 9.4 第三步：冻结 ImageNet
 
-```text
-SHA256("20260917|coco|" + content_id)
-```
+沿 ImageNet 固定随机排列增量解码，排除解码失败、已入选的 ImageNet 内容重复，以及与完整 GenImage 或已冻结 COCO external 的内容重叠。凑够 7000 张后，按入选顺序划分 train 5000、val 1000、calibration 1000。
 
-按十六进制字符串升序；同 key 再按 `content_id`。
+### 9.5 第四步：冻结 LSUN
 
-取前：
+沿 LSUN 固定随机排列增量解码，排除解码失败、已入选的 LSUN 内容重复，以及与完整 GenImage、已冻结 COCO external、正式入选的 7000 张 ImageNet 内容重叠。凑够 7000 张后，按入选顺序划分 train 5000、val 1000、calibration 1000。未入选的 ImageNet 候选无需解码；若来源提供可靠 `group_id`，同组仍不得跨 train/val/calibration。不做感知哈希近重复推断。
 
-```text
-2000
-```
-
-作为 `real_external_eval`。
-
-### 9.3 第三步：真实训练候选排除固定评估内容
-
-建立：
-
-```text
-eval_content_ids = GenImage content IDs ∪ COCO external content IDs
-```
-
-ImageNet / LSUN 候选中凡 `content_id` 落入该集合全部排除。
-
-### 9.4 第四步：ImageNet / LSUN 全局去重
-
-- 同来源重复：按稳定原始记录 ID 字典序保留一个；
-- 跨 ImageNet / LSUN 完全相同内容：固定优先 ImageNet；
-- 若数据源提供可靠 `group_id`，同组不能跨 train/val/calibration；
-- 不做额外 perceptual hash 近重复推断。
-
-### 9.5 第五步：确定性排序
-
-每个来源独立计算：
-
-```text
-SHA256("20260917|" + source + "|" + content_id)
-```
-
-按十六进制升序；相同 key 再按 `content_id`。
-
-### 9.6 第六步：固定数量切分
+### 9.6 固定数量切分
 
 ImageNet：
 
@@ -670,10 +634,11 @@ SCOPE_DATA/manifests/SCOPE_CR68_MDN3_v1.0/
 `manifest_meta.json` 至少记录：
 
 - protocol id；
-- salt；
+- candidate sampling seed；
 - 每个 manifest SHA256；
-- 每来源候选数、拒绝数、重复数、最终数量；
+- 每来源候选总数、实际处理数、入选数、解码错误数、重复拒绝数、正式集合重叠拒绝数；
 - Pillow 版本；
+- NumPy 版本；
 - 构建时间；
 - 数据源根路径仅作本地记录，不用于内容身份。
 
@@ -1971,7 +1936,8 @@ parameter count = 7923
 - ImageNet 跨源重复优先保留；
 - train/val/calibration 不重叠；
 - eval IDs 被训练候选排除；
-- salt 排序确定性；
+- 固定 seed 的候选随机顺序可复现且与文件系统遍历顺序无关；
+- 增量补样与不全量解码；
 - 候选不足时失败。
 
 ### 31.8 `test_calibration.py`

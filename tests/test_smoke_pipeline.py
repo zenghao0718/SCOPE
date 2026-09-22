@@ -10,7 +10,7 @@ from engine.config import load_config
 from engine.trainer import train
 from engine.checkpoint import load_checkpoint
 from data.sources import file_records
-from data.manifests import enrich, write_manifests
+from data.manifests import enrich, build_splits, write_manifests
 from data.feature_cache import build_cache, load_cache
 from features.standardization import fit
 from evaluation.inference import image_scores
@@ -44,7 +44,7 @@ def test_pipeline(tmp_path, monkeypatch):
             rows[0]["label"] = 0
         roots[split] = [{**row, "split": split} for row in rows]
     manifest_dir = tmp_path / "manifests"
-    write_manifests(roots, manifest_dir, config["protocol"]["id"], config["data"]["split_salt"])
+    write_manifests(roots, manifest_dir, config["protocol"]["id"], config["data"]["candidate_sampling_seed"])
     feature_dir = tmp_path / "features"
     arrays = {}
     for split in roots:
@@ -95,3 +95,33 @@ def test_pipeline(tmp_path, monkeypatch):
                           ("genimage_eval", "[GenImage] synthetic")):
         logfile = next((seed_dir / "logs").glob(f"*_{phase}.log"))
         assert phrase in logfile.read_text(encoding="utf-8")
+
+
+def test_sampling_manifest_smoke(tmp_path):
+    def make_source(name, values):
+        root = tmp_path / name
+        root.mkdir()
+        for index, value in enumerate(values):
+            Image.fromarray(np.full((64, 64, 3), value, np.uint8)).save(root / f"{index}.png")
+        return root
+
+    gen_root = make_source("genimage", [5, 6])
+    coco_root = make_source("coco", [5, 20, 21, 22, 23])
+    im_root = make_source("imagenet", [5, 30, 31, 32, 33, 34, 35, 36])
+    ls_root = make_source("lsun", [30, 40, 41, 42, 43, 44, 45, 46])
+    gen, errors = enrich(file_records(gen_root, "genimage", label=1, generator="synthetic"))
+    assert not errors and len(gen) == 2 and all(r["content_id"] for r in gen)
+    splits, stats = build_splits(file_records(im_root, "imagenet"), file_records(ls_root, "lsun"),
+                                 file_records(coco_root, "coco"), gen,
+                                 counts={"imagenet": (2, 1, 1), "lsun": (2, 1, 1), "coco": 2})
+    assert [len(splits[name]) for name in ("real_train", "real_val", "real_calibration", "real_external_coco", "genimage_eval")] == [4, 2, 2, 2, 2]
+    real = sum((splits[name] for name in ("real_train", "real_val", "real_calibration", "real_external_coco")), [])
+    assert len({r["content_id"] for r in real}) == len(real)
+    assert not {r["content_id"] for r in real} & {r["content_id"] for r in gen}
+    assert stats["coco"]["processed_candidates"] < stats["coco"]["total_candidates"]
+    output = tmp_path / "manifests"
+    meta = write_manifests(splits, output, "SCOPE_CR68_MDN3_v1.0", 20260917, stats)
+    assert meta["candidate_sampling_seed"] == 20260917
+    assert meta["stats"]["imagenet"]["selected_candidates"] == 4
+    assert {"total_candidates", "processed_candidates", "selected_candidates", "decode_errors",
+            "duplicate_rejections", "overlap_rejections"} <= set(meta["stats"]["imagenet"])

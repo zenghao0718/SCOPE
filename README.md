@@ -18,7 +18,7 @@ Install a PyTorch build appropriate for the machine first. On AutoDL, keep its w
 
 ## Formal workflow
 
-The formal data split and feature cache are shared by all three seeds. Freeze GenImage first, COCO second, and exclude their content IDs from ImageNet/LSUN before deterministic sorting and splitting. Only `real_train` fits the standardizer or trains the MDN. `real_val` selects the best checkpoint and controls stopping. `real_calibration` only sets the threshold. COCO and GenImage are final evaluation only; their results must never change the model or protocol.
+The formal data split and feature cache are shared by all three model seeds. GenImage test is fully decoded and frozen first. COCO, ImageNet, and LSUN candidate identities are each sorted, then permuted with the independent fixed `candidate_sampling_seed=20260917`. Only candidates consumed along that order are decoded; failures, content duplicates, and overlaps with already frozen formal sets are skipped until COCO has 2000, ImageNet has 7000, and LSUN has 7000 valid unique images. The selected ImageNet and LSUN sequences each split 5000/1000/1000 into train/val/calibration. Unselected candidates are not used for standardization. Only the 10000 selected `real_train` images (40000 patches) fit the standardizer or train the MDN. `real_val` selects the best checkpoint and controls stopping. `real_calibration` only sets the threshold. COCO and GenImage are final evaluation only; their results never change the model or protocol.
 
 ```bash
 python scripts/build_manifests.py --paths-config configs/local_paths.yaml --output-dir ../SCOPE_DATA/manifests/SCOPE_CR68_MDN3_v1.0
