@@ -3,6 +3,8 @@ import csv
 import hashlib
 import json
 import platform
+import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,6 +14,8 @@ from features.cr_features import extract_cr
 from data.decoding import resize_if_needed
 from data.manifests import decode_record, sha256_file
 from data.patches import extract_patches
+
+ERROR_SPLITS = frozenset({"genimage_eval", "real_external_eval", "real_external_coco"})
 
 
 def feature_protocol_hash(config):
@@ -45,7 +49,64 @@ def extract_one(row):
     return np.stack([v[0] for v in values]), np.stack([v[1] for v in values]), coords, metadata
 
 
-def build_cache(rows, manifest_path, output, config, overwrite=False):
+def _error_record(row, exc):
+    metadata = {key: row.get(key, "") for key in ("image_id", "content_id", "source", "label", "generator")}
+    metadata.update(upscaled="", original_width=row.get("original_width", ""),
+                    original_height=row.get("original_height", ""), processed_width="", processed_height="",
+                    scale_x="", scale_y="", num_unique_patches="",
+                    status=row.get("decode_status") if row.get("decode_status") != "ok" else "feature_error",
+                    error_type=type(exc).__name__, error_message=str(exc))
+    return (np.zeros((4, 6), np.float64), np.zeros((4, 8), np.float64),
+            np.zeros((4, 2), np.int32), metadata)
+
+
+def _extract_row(args):
+    row, allow_errors = args
+    try:
+        return extract_one(row)
+    except Exception as exc:
+        if not allow_errors:
+            raise
+        return _error_record(row, exc)
+
+
+def _extract_serial(rows, allow_errors):
+    extracted, error_count = [], 0
+    for row in rows:
+        try:
+            extracted.append(extract_one(row))
+        except Exception as exc:
+            if not allow_errors:
+                raise
+            error_count += 1
+            extracted.append(_error_record(row, exc))
+    return extracted, error_count
+
+
+def _extract_parallel(rows, allow_errors, workers, chunksize, split_name, progress_interval):
+    total = len(rows)
+    tasks = [(row, allow_errors) for row in rows]
+    extracted, error_count = [], 0
+    started = time.perf_counter()
+    label = split_name or "cache"
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        for index, item in enumerate(executor.map(_extract_row, tasks, chunksize=chunksize), start=1):
+            extracted.append(item)
+            if item[3].get("status") != "ok":
+                error_count += 1
+            if index % progress_interval == 0 or index == total:
+                elapsed = time.perf_counter() - started
+                rate = index / elapsed if elapsed > 0 else 0.0
+                remaining = (total - index) / rate if rate > 0 else 0.0
+                print(f"[{label}] processed={index}/{total} | workers={workers} | elapsed={elapsed:.1f}s | "
+                      f"images/s={rate:.1f} | errors={error_count} | ETA={remaining:.1f}s", flush=True)
+    return extracted, error_count
+
+
+def build_cache(rows, manifest_path, output, config, overwrite=False, *, workers=1, split_name="",
+                progress_interval=500):
+    if workers < 1:
+        raise ValueError("workers must be >= 1")
     output = Path(output)
     protocol_hash = feature_protocol_hash(config)
     manifest_hash = sha256_file(manifest_path)
@@ -56,23 +117,12 @@ def build_cache(rows, manifest_path, output, config, overwrite=False):
             raise ValueError("cache protocol or manifest mismatch; use --overwrite")
         return meta
     output.mkdir(parents=True, exist_ok=True)
-    extracted = []
-    error_count = 0
-    for row in rows:
-        try:
-            extracted.append(extract_one(row))
-        except Exception as exc:
-            if row.get("split") not in ("genimage_eval", "real_external_eval") and row.get("split") != "real_external_coco":
-                raise
-            error_count += 1
-            metadata = {key: row.get(key, "") for key in ("image_id", "content_id", "source", "label", "generator")}
-            metadata.update(upscaled="", original_width=row.get("original_width", ""),
-                            original_height=row.get("original_height", ""), processed_width="", processed_height="",
-                            scale_x="", scale_y="", num_unique_patches="",
-                            status=row.get("decode_status") if row.get("decode_status") != "ok" else "feature_error",
-                            error_type=type(exc).__name__, error_message=str(exc))
-            extracted.append((np.zeros((4, 6), np.float64), np.zeros((4, 8), np.float64),
-                              np.zeros((4, 2), np.int32), metadata))
+    allow_errors = any(row.get("split") in ERROR_SPLITS for row in rows) or split_name in ERROR_SPLITS
+    chunksize = max(1, min(32, len(rows) // max(workers * 4, 1) or 1))
+    if workers == 1:
+        extracted, error_count = _extract_serial(rows, allow_errors)
+    else:
+        extracted, error_count = _extract_parallel(rows, allow_errors, workers, chunksize, split_name, progress_interval)
     if not extracted:
         raise ValueError("empty manifest")
     c, r, coords, metadata = zip(*extracted)
